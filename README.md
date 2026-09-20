@@ -1,94 +1,57 @@
-# Shortcut Pad — MCP Server
+# shortcut-pad-mcp
 
-A local [Model Context Protocol](https://modelcontextprotocol.io) server that puts the
-Shortcut Pad launcher behind natural language: *"open Focus Timer,"* *"what's on my
-shortcut pad?"*, *"add Blender to the pad."*
-
-It is a view onto the launcher's **existing** `config.json` — not a second copy of that
-state — so anything you add here shows up in the Ctrl+Alt+L palette, and vice versa.
-
-Built in Python with the official MCP SDK (`FastMCP`). **No external API, no API keys,
-works offline.**
-
-## Security model
-
-`shortcutpad_launch` can **only** start entries that already exist in the launcher's
-`config.json`. It never accepts a raw path or command from the caller — a request to
-launch `C:\Windows\System32\calc.exe` is rejected unless "calc" is already an entry you
-put on the pad. `config.json` is the allowlist, and you own it.
-
-This matters because MCP tool calls can be influenced by content a model reads. An
-allowlist means the worst case is "launched one of your own utilities", not "ran an
-arbitrary executable".
-
-`shortcutpad_add_item` does write to that allowlist, so:
-- it refuses targets that don't exist on disk,
-- it is annotated as a non-read-only tool, and
-- adding and launching are two separate calls, so each surfaces to you for approval.
-
-If you'd rather remove that path entirely, delete the `shortcutpad_add_item` and
-`shortcutpad_remove_item` tools — the read + launch pair works fine on its own.
+MCP server over a Windows launcher config — list and launch local apps by name, allowlist-enforced.
 
 ## Tools
 
-| Tool | Purpose |
-|------|---------|
-| `shortcutpad_list_items` | List every shortcut on the pad |
-| `shortcutpad_launch` | Launch one shortcut by name (allowlist-enforced) |
-| `shortcutpad_add_item` | Add a new shortcut |
-| `shortcutpad_remove_item` | Remove a shortcut (never deletes the target itself) |
+| Tool | Does |
+|---|---|
+| `shortcutpad_list_items` | Every configured entry |
+| `shortcutpad_launch` | Start one **by name** |
+| `shortcutpad_add_item` | Add an entry |
+| `shortcutpad_remove_item` | Remove one |
 
-Names match case-insensitively, and partial names work when unambiguous — `"focus tim"`
-resolves to `Focus Timer`, while `"focus"` returns both candidates rather than guessing.
+## The design decision worth stating
 
-## Setup
+**The launch tool takes a name, never a path or a command line.** It resolves that name against the
+existing `config.json` and refuses anything not already there. An MCP tool that accepted an arbitrary
+command would be a remote shell wearing a launcher costume — the allowlist is the entire security
+model, so it is enforced at the only entry point rather than validated afterwards.
 
-Requires Python 3.10+ and the MCP SDK:
+## Notes
 
-```bash
-pip install "mcp[cli]"
-```
+- Tests use a **temporary config** and never start a real program: the launch path is exercised
+  through its resolution and validation logic only.
+- Removing a non-existent item is an error, not a silent no-op, so a typo surfaces immediately.
 
-## Register with Claude Code
+**14 checks pass.**
 
-```bash
-claude mcp add shortcut-pad -- python "C:\Users\anshu\Desktop\Claude\shortcut-pad-mcp\server.py"
-```
+## About MCP
 
-## Register with Claude Desktop
-
-Add to `%APPDATA%\Claude\claude_desktop_config.json`:
+[Model Context Protocol](https://modelcontextprotocol.io) is a standard for exposing tools to an LLM
+client. This server speaks MCP over stdio, so it is registered in the client config rather than run
+directly.
 
 ```json
 {
   "mcpServers": {
-    "shortcut-pad": {
-      "command": "python",
-      "args": ["C:\\Users\\anshu\\Desktop\\Claude\\shortcut-pad-mcp\\server.py"]
-    }
+    "shortcut-pad": { "command": "python", "args": ["C:/path/to/shortcut-pad-mcp/server.py"] }
   }
 }
 ```
 
-Restart Claude Desktop afterwards.
+**Register it twice if you use both Claude Code and Claude Desktop.** They read separate config files,
+and a server registered in one is invisible to the other — this cost real debugging time.
 
-## Test
+## Tests
 
-```bash
+```
 python test_server.py
 ```
 
-Runs a temp-file smoke test covering all 4 tools, name resolution, ambiguity, the
-allowlist guarantee, and stale-target handling. It never launches a program and never
-touches your real `config.json`.
+Drives every tool through the real handlers and prints one `PASS` line per check. No pytest — the
+suite is a single script so it runs anywhere with no dev dependencies.
 
-## Config
+## License
 
-Reads `C:\Users\anshu\Desktop\Claude\launcher\config.json` by default. Override with the
-`SHORTCUTPAD_CONFIG_FILE` environment variable.
-
-The launcher app reads its config at startup, so restart it to see items added here.
-
-## Tech
-
-Python · MCP Python SDK (FastMCP) · Pydantic v2 · asyncio
+MIT — see [LICENSE](LICENSE).
