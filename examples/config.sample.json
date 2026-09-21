@@ -1,0 +1,9 @@
+{
+  "hotkey": "ctrl+alt+l",
+  "items": [
+    {"name": "Focus Timer", "type": "app", "target": "C:/Tools/FocusTimer/focus_timer.exe", "hotkey": "ctrl+alt+f"},
+    {"name": "Focus Music", "type": "url", "target": "https://example.com/lofi"},
+    {"name": "Clipboard History", "type": "app", "target": "C:/Tools/Clipboard/clipboard.exe"},
+    {"name": "Project Notes", "type": "folder", "target": "C:/Users/Public/Notes"}
+  ]
+}
