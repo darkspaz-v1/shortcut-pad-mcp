@@ -9,6 +9,7 @@ Run:  python test_server.py
 """
 
 import asyncio
+import importlib
 import json
 import os
 import tempfile
@@ -88,6 +89,22 @@ async def main() -> None:
 
     data = json.loads(await s.shortcutpad_list_items(s.ListItemsInput(response_format=s.ResponseFormat.JSON)))
     ok(data["count"] == 1, "one item left after removal")
+
+    # 9. Configuration: the env var wins, and the fallback is home-relative
+    ok(s.CONFIG_FILE == _cfg, "SHORTCUTPAD_CONFIG_FILE env var sets the config path")
+    del os.environ["SHORTCUTPAD_CONFIG_FILE"]
+    try:
+        s2 = importlib.reload(s)
+        ok(
+            s2.CONFIG_FILE
+            == os.path.join(
+                os.path.expanduser("~"), "Desktop", "Claude", "launcher", "config.json"
+            ),
+            "fallback config path is derived from the home directory",
+        )
+    finally:
+        os.environ["SHORTCUTPAD_CONFIG_FILE"] = _cfg
+        importlib.reload(s)
 
     print("\nAll shortcut-pad tests passed.")
 
