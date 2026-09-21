@@ -1,0 +1,25 @@
+# Raw responses from server.py against a copy of examples/config.sample.json
+# (os.startfile and webbrowser.open are mocked; nothing was launched)
+# tools/list -> shortcutpad_add_item, shortcutpad_launch, shortcutpad_list_items, shortcutpad_remove_item
+
+## shortcutpad_list_items {}
+# Shortcut Pad (4 items)
+_Open the palette with `ctrl+alt+l`._
+
+- **Focus Timer** — `app` · hotkey `ctrl+alt+f`
+    - Target: `C:/Tools/FocusTimer/focus_timer.exe`
+- **Focus Music** — `url`
+    - Target: `https://example.com/lofi`
+- **Clipboard History** — `app`
+    - Target: `C:/Tools/Clipboard/clipboard.exe`
+- **Project Notes** — `folder`
+    - Target: `C:/Users/Public/Notes`
+
+## shortcutpad_launch {"name": "focus timer"}
+Launched **Focus Timer** (app) — `C:/Tools/FocusTimer/focus_timer.exe`.
+
+## shortcutpad_launch {"name": "C:\\Windows\\System32\\calc.exe"}
+Error: No shortcut named 'C:\Windows\System32\calc.exe'. Available: 'Focus Timer', 'Focus Music', 'Clipboard History', 'Project Notes'. Use shortcutpad_list_items for details.
+
+## shortcutpad_launch {"name": "Focus"}
+Error: 'Focus' is ambiguous — it matches 'Focus Timer', 'Focus Music'. Call shortcutpad_launch again with the full name.
