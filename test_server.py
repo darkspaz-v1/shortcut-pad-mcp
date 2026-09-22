@@ -9,6 +9,7 @@ Run:  python test_server.py
 """
 
 import asyncio
+import importlib
 import json
 import os
 import tempfile
@@ -88,6 +89,60 @@ async def main() -> None:
 
     data = json.loads(await s.shortcutpad_list_items(s.ListItemsInput(response_format=s.ResponseFormat.JSON)))
     ok(data["count"] == 1, "one item left after removal")
+
+    # 9. Configuration: the env var wins, and the fallback is home-relative
+    ok(s.CONFIG_FILE == _cfg, "SHORTCUTPAD_CONFIG_FILE env var sets the config path")
+    del os.environ["SHORTCUTPAD_CONFIG_FILE"]
+    try:
+        s2 = importlib.reload(s)
+        ok(
+            s2.CONFIG_FILE
+            == os.path.join(
+                os.path.expanduser("~"), "Desktop", "Claude", "launcher", "config.json"
+            ),
+            "fallback config path is derived from the home directory",
+        )
+    finally:
+        os.environ["SHORTCUTPAD_CONFIG_FILE"] = _cfg
+        importlib.reload(s)
+
+    # 10. Launch takes a name only, and starts a program only for an allowlisted name.
+    #     os.startfile is replaced by a recorder, so nothing real is ever started.
+    ok(list(s.LaunchInput.model_fields) == ["name"], "launch input has a single 'name' field (no path or command)")
+    tools = await s.mcp.list_tools()
+    ok(
+        sorted(t.name for t in tools)
+        == ["shortcutpad_add_item", "shortcutpad_launch", "shortcutpad_list_items", "shortcutpad_remove_item"],
+        "server exposes exactly the four documented tools",
+    )
+    started = []
+    real_startfile = getattr(os, "startfile", None)
+    os.startfile = started.append
+    try:
+        stub = os.path.join(_tmp, "stub-app.exe")
+        with open(stub, "w", encoding="utf-8") as fh:
+            fh.write("x")
+        await s.shortcutpad_add_item(s.AddItemInput(name="Stub App", target=stub))
+        r = await s.shortcutpad_launch(s.LaunchInput(name="stub app"))
+        ok("Launched" in r and started == [stub], "allowlisted name reaches the launcher exactly once")
+        r = await s.shortcutpad_launch(s.LaunchInput(name=stub))
+        ok("No shortcut named" in r and started == [stub], "the same path passed as a name is refused")
+    finally:
+        if real_startfile is None:
+            del os.startfile
+        else:
+            os.startfile = real_startfile
+
+    # 11. The bundled sample config (used by the README demo) is valid
+    sample = os.path.join(os.path.dirname(os.path.abspath(__file__)), "examples", "config.sample.json")
+    with open(sample, encoding="utf-8") as fh:
+        sample_cfg = json.load(fh)
+    names = [i["name"].lower() for i in sample_cfg["items"]]
+    kinds = {k.value for k in s.ItemType}
+    ok(
+        len(names) == len(set(names)) and all(i["type"] in kinds and i["target"] for i in sample_cfg["items"]),
+        "sample config has unique names, valid types and targets",
+    )
 
     print("\nAll shortcut-pad tests passed.")
 

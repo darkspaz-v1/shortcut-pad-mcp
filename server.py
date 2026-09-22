@@ -3,7 +3,7 @@
 Shortcut Pad MCP Server.
 
 A local, self-contained MCP server that exposes the Shortcut Pad launcher
-(C:\\Users\\anshu\\Desktop\\Claude\\launcher) to any MCP client, so an AI assistant
+(its config.json; set SHORTCUTPAD_CONFIG_FILE) to any MCP client, so an AI assistant
 can list and launch your Windows utility apps by name instead of you opening the
 palette with Ctrl+Alt+L.
 
@@ -32,6 +32,7 @@ Tools:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 from enum import Enum
@@ -46,11 +47,15 @@ from mcp.server.fastmcp import FastMCP
 # ---------------------------------------------------------------------------
 
 mcp = FastMCP("shortcutpad_mcp")
+log = logging.getLogger("shortcutpad_mcp")  # stdio transport: logs go to stderr, never stdout
 
-# The launcher app's own config. Override with SHORTCUTPAD_CONFIG_FILE.
+# The launcher app's own config. Set SHORTCUTPAD_CONFIG_FILE; the fallback is
+# <home>/Desktop/Claude/launcher/config.json (home = %USERPROFILE% on Windows).
 CONFIG_FILE = os.environ.get(
     "SHORTCUTPAD_CONFIG_FILE",
-    r"C:\Users\anshu\Desktop\Claude\launcher\config.json",
+    os.path.join(
+        os.path.expanduser("~"), "Desktop", "Claude", "launcher", "config.json"
+    ),
 )
 
 # A single lock guards all reads/writes so concurrent tool calls stay consistent.
@@ -90,7 +95,8 @@ def _load() -> Dict[str, Any]:
         if not isinstance(data["items"], list):
             data["items"] = []
         return data
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        log.warning("Could not read launcher config %s: %s", CONFIG_FILE, exc)
         return {"hotkey": "ctrl+alt+l", "items": []}
 
 
