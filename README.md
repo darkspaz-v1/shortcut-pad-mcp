@@ -3,6 +3,19 @@
 Let an AI assistant list and launch your Windows apps, folders and links by name, and only the names
 already on your Shortcut Pad allowlist.
 
+A real tool call and its real response, from `server.py` against the synthetic
+[`examples/config.sample.json`](examples/config.sample.json) (`os.startfile` mocked, nothing launched —
+see [`docs/media/demo-capture.txt`](docs/media/demo-capture.txt) for the full session):
+
+```
+> shortcutpad_launch {"name": "C:\\Windows\\System32\\calc.exe"}
+< Error: No shortcut named 'C:\Windows\System32\calc.exe'. Available: 'Focus Timer', 'Focus Music',
+  'Clipboard History', 'Project Notes'. Use shortcutpad_list_items for details.
+```
+
+A raw path is not a name on the allowlist, so nothing runs — the same call with `"name": "focus timer"`
+instead launches the sample's `Focus Timer` entry.
+
 [![CI](https://github.com/darkspaz-v1/shortcut-pad-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/darkspaz-v1/shortcut-pad-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -115,12 +128,18 @@ flowchart LR
 
 ## Limitations
 
+- **Windows only.** Launching uses `os.startfile`, a Windows-only API; there is no macOS/Linux
+  equivalent in this server.
+- **No arbitrary command execution, by design.** `shortcutpad_launch` takes a *name* and nothing else —
+  it cannot run an arbitrary path, URL, or shell command. This is the security boundary described above,
+  not an accidental restriction.
+- **The item must already exist in `config.json`.** `shortcutpad_launch` can only start entries already
+  on the allowlist; there is no way to launch anything else in a single call.
 - **The allowlist is only as strong as who can edit it.** `shortcutpad_add_item` extends the allowlist
   with any existing file or folder path, and `shortcutpad_launch` can then start it. An assistant that
   was manipulated could chain the two calls. The defence is that they are separate tool calls; keep
   per-call approval on in your MCP client, and review what `add_item` is asked to add.
 - URL entries are passed to the default browser as given, without checking the scheme.
-- Windows only: launching uses `os.startfile`.
 - Item hotkeys are stored, but this server does not register them; that is the launcher app's job.
 - Tests never start a real program, so real-launch behaviour is verified only by inspection.
 
