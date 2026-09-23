@@ -3,6 +3,8 @@
 Let an AI assistant list and launch your Windows apps, folders and links by name, and only the names
 already on your Shortcut Pad allowlist.
 
+![Architecture: an AI model calls shortcutpad_list_items, shortcutpad_launch, shortcutpad_add_item or shortcutpad_remove_item on the MCP server, which only launches names found on the Shortcut Pad allowlist.](docs/images/architecture.png)
+
 A real tool call and its real response, from `server.py` against the synthetic
 [`examples/config.sample.json`](examples/config.sample.json) (`os.startfile` mocked, nothing launched —
 see [`docs/media/demo-capture.txt`](docs/media/demo-capture.txt) for the full session):
